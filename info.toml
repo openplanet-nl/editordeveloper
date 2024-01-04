@@ -1,0 +1,7 @@
+[meta]
+name = "Editor Developer Tools"
+author = "Openplanet"
+category = "Map Editor"
+
+[script]
+imports = [ "Patch.as" ]
