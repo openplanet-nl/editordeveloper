@@ -1,18 +1,31 @@
 [Setting name="Disable edge camera movement"]
 bool Setting_DisableEdgeCamera = true;
 
+#if !FOREVER
 [Setting name="Show Nadeo developer tools"]
+#endif
 bool Setting_NadeoDeveloperTools = false;
 
+#if MP4 || TMNEXT
 [Setting name="Show offzone button"]
+#endif
 bool Setting_OffzoneButton = true;
 
-#if !TURBO
-PatternPatch@ g_patchOffzone;
+PatternPatch@ g_patchEnableOffzone;
+PatternPatch@ g_patchDisableScroll;
+
+#if MP4 || TMNEXT
+CControlBase@ g_frameLightTools;
 #endif
 
-bool g_inMapEditor = false;
-CControlBase@ g_frameLightTools = null;
+void RenderMenu()
+{
+#if MP4 || TMNEXT
+	if (g_frameLightTools !is null && UI::MenuItem("\\$cf9" + Icons::Sun + "\\$z Show light tools bar", "", g_frameLightTools.IsVisible)) {
+		g_frameLightTools.IsVisible = !g_frameLightTools.IsVisible;
+	}
+#endif
+}
 
 CControlBase@ FindControl(CControlContainer@ container, const string &in id)
 {
@@ -33,12 +46,12 @@ CControlBase@ FindControl(CControlContainer@ container, const string &in id)
 	return null;
 }
 
-#if !TURBO
-void OnEditorOpen(CGameCtnEditorFree@ editor)
+void OnEditorOpened(CTrackManiaEditorFree@ editor)
 {
 	auto scene = editor.EditorInterface.InterfaceScene;
 	auto root = cast<CControlContainer>(scene.Mobils[0]);
 
+#if !FOREVER
 	// Nadeo's developer tools
 	if (Setting_NadeoDeveloperTools) {
 		auto frameDeveloperTools = cast<CControlContainer>(FindControl(root, "FrameDeveloperTools"));
@@ -50,7 +63,9 @@ void OnEditorOpen(CGameCtnEditorFree@ editor)
 			}
 		}
 	}
+#endif
 
+#if MP4 || TMNEXT
 	// Offzone
 	if (Setting_OffzoneButton) {
 		auto frameEditTools = cast<CControlContainer>(FindControl(root, "FrameEditTools"));
@@ -67,45 +82,53 @@ void OnEditorOpen(CGameCtnEditorFree@ editor)
 			}
 		}
 	}
+#endif
 
+	// Editor scrolling
+	if (g_patchDisableScroll !is null && Setting_DisableEdgeCamera) {
+		g_patchDisableScroll.Apply();
+	}
+
+#if MP4 || TMNEXT
 	// Light tools
 	@g_frameLightTools = FindControl(root, "FrameLightTools");
+#endif
 }
 
-void OnEditorClose(CGameCtnEditorFree@ editor)
+void OnEditorClosed()
 {
-	if (g_patchOffzone.IsApplied()) {
-		g_patchOffzone.Revert();
+	if (g_patchEnableOffzone !is null && g_patchEnableOffzone.IsApplied()) {
+		g_patchEnableOffzone.Revert();
+	}
+	if (g_patchDisableScroll !is null && g_patchDisableScroll.IsApplied()) {
+		g_patchDisableScroll.Revert();
+	}
+
+#if MP4 || TMNEXT
+	@g_frameLightTools = null;
+#endif
+}
+
+void OnSettingsChanged()
+{
+	if (g_patchDisableScroll !is null) {
+		if (Setting_DisableEdgeCamera && !g_patchDisableScroll.IsApplied()) {
+			g_patchDisableScroll.Apply();
+		} else if (!Setting_DisableEdgeCamera && g_patchDisableScroll.IsApplied()) {
+			g_patchDisableScroll.Revert();
+		}
 	}
 }
 
 void OnDestroyed()
 {
-	if (g_patchOffzone.IsApplied()) {
-		g_patchOffzone.Revert();
-	}
-}
-
-void RenderMenu()
-{
-	if (!g_inMapEditor) {
-		return;
-	}
-
-	if (g_frameLightTools !is null && UI::MenuItem("\\$cf9" + Icons::Sun + "\\$z Show light tools bar", "", g_frameLightTools.IsVisible)) {
-		g_frameLightTools.IsVisible = !g_frameLightTools.IsVisible;
-	}
+	OnEditorClosed();
 }
 
 void Main()
 {
-	if (!Permissions::OpenAdvancedMapEditor()) {
-		return;
-	}
-
-	auto app = GetApp();
-
-	@g_patchOffzone = PatternPatch(
+#if MP4 || TMNEXT
+	@g_patchEnableOffzone = PatternPatch(
 #if TMNEXT && !LOGS
 		"0F 84 ?? ?? ?? ?? 4C 8D 45 ?? BA 13",
 		"90 90 90 90 90 90"
@@ -120,28 +143,25 @@ void Main()
 		"90 90 90 90 90 90"
 #endif
 	);
+#endif
 
+#if FOREVER
+	@g_patchDisableScroll = PatternPatch(
+		"83 EC 3C D9 EE",
+		"C2 0C 00"
+	);
+#endif
+
+	bool hadEditor = false;
 	while (true) {
-		auto editor = cast<CGameCtnEditorFree>(app.Editor);
-		if (!g_inMapEditor && editor !is null) {
-			g_inMapEditor = true;
-			OnEditorOpen(editor);
-		} else if (g_inMapEditor && editor is null) {
-			g_inMapEditor = false;
-			OnEditorClose(editor);
+		auto editor = cast<CTrackManiaEditorFree>(cast<CTrackMania>(GetApp()).Editor);
+		bool hasEditorNow = editor !is null;
+		if (!hadEditor && hasEditorNow) {
+			OnEditorOpened(editor);
+		} else if (hadEditor && !hasEditorNow) {
+			OnEditorClosed();
 		}
-
-		if (editor !is null && editor.OrbitalCameraControl !is null) {
-			if (Setting_DisableEdgeCamera) {
-				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 1.1f;
-				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 1.1f;
-			} else {
-				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 0.7f;
-				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 0.98f;
-			}
-		}
-
+		hadEditor = hasEditorNow;
 		yield();
 	}
 }
-#endif
