@@ -27,6 +27,18 @@ void RenderMenu()
 #endif
 }
 
+#if FOREVER
+CTrackManiaEditorCatalog@ GetEditor()
+{
+	return cast<CTrackManiaEditorCatalog>(cast<CTrackMania>(GetApp()).Editor);
+}
+#else
+CGameCtnEditorFree@ GetEditor()
+{
+	return cast<CGameCtnEditorFree>(GetApp().Editor);
+}
+#endif
+
 CControlBase@ FindControl(CControlContainer@ container, const string &in id)
 {
 	for (uint i = 0; i < container.Childs.Length; i++) {
@@ -46,8 +58,9 @@ CControlBase@ FindControl(CControlContainer@ container, const string &in id)
 	return null;
 }
 
-void OnEditorOpened(CTrackManiaEditorFree@ editor)
+void OnEditorOpened()
 {
+	auto editor = GetEditor();
 	auto scene = editor.EditorInterface.InterfaceScene;
 	auto root = cast<CControlContainer>(scene.Mobils[0]);
 
@@ -75,7 +88,7 @@ void OnEditorOpened(CTrackManiaEditorFree@ editor)
 				buttonOffZone.Show();
 
 				try {
-					g_patchOffzone.Apply();
+					g_patchEnableOffzone.Apply();
 				} catch {
 					warn("Unable to find offzone patch!");
 				}
@@ -154,14 +167,28 @@ void Main()
 
 	bool hadEditor = false;
 	while (true) {
-		auto editor = cast<CTrackManiaEditorFree>(cast<CTrackMania>(GetApp()).Editor);
+		auto editor = GetEditor();
+
 		bool hasEditorNow = editor !is null;
 		if (!hadEditor && hasEditorNow) {
-			OnEditorOpened(editor);
+			OnEditorOpened();
 		} else if (hadEditor && !hasEditorNow) {
 			OnEditorClosed();
 		}
 		hadEditor = hasEditorNow;
+
+#if !FOREVER
+		if (editor !is null && editor.OrbitalCameraControl !is null) {
+			if (Setting_DisableEdgeCamera) {
+				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 1.1f;
+				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 1.1f;
+			} else {
+				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 0.7f;
+				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 0.98f;
+			}
+		}
+#endif
+
 		yield();
 	}
 }
