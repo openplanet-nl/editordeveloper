@@ -180,11 +180,21 @@ void Main()
 #if !FOREVER
 		if (editor !is null && editor.OrbitalCameraControl !is null) {
 			if (Setting_DisableEdgeCamera) {
+#if TURBO
+				editor.OrbitalCameraControl.ParamScrollAreaStart = 1.1f;
+				editor.OrbitalCameraControl.ParamScrollAreaMax = 1.1f;
+#else
 				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 1.1f;
 				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 1.1f;
+#endif
 			} else {
+#if TURBO
+				editor.OrbitalCameraControl.ParamScrollAreaStart = 0.7f;
+				editor.OrbitalCameraControl.ParamScrollAreaMax = 0.98f;
+#else
 				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 0.7f;
 				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 0.98f;
+#endif
 			}
 		}
 #endif
