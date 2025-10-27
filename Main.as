@@ -46,7 +46,11 @@ CControlBase@ FindControl(CControlContainer@ container, const string &in id)
 	return null;
 }
 
+#if FOREVER
 void OnEditorOpened(CTrackManiaEditorFree@ editor)
+#else
+void OnEditorOpened(CGameCtnEditorFree@ editor)
+#endif
 {
 	auto scene = editor.EditorInterface.InterfaceScene;
 	auto root = cast<CControlContainer>(scene.Mobils[0]);
@@ -154,13 +158,39 @@ void Main()
 
 	bool hadEditor = false;
 	while (true) {
+#if FOREVER
 		auto editor = cast<CTrackManiaEditorFree>(cast<CTrackMania>(GetApp()).Editor);
+#else
+		auto editor = cast<CGameCtnEditorFree>(cast<CTrackMania>(GetApp()).Editor);
+#endif
 		bool hasEditorNow = editor !is null;
 		if (!hadEditor && hasEditorNow) {
 			OnEditorOpened(editor);
 		} else if (hadEditor && !hasEditorNow) {
 			OnEditorClosed();
 		}
+
+#if MP4 || TMNEXT
+		if (editor !is null && editor.OrbitalCameraControl !is null) {
+			if (Setting_DisableEdgeCamera) {
+				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 1.1f;
+				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 1.1f;
+			} else {
+				editor.OrbitalCameraControl.m_ParamScrollAreaStart = 0.7f;
+				editor.OrbitalCameraControl.m_ParamScrollAreaMax = 0.98f;
+			}
+		}
+#elif TURBO
+		if (editor !is null && editor.OrbitalCameraControl !is null) {
+			if (Setting_DisableEdgeCamera) {
+				editor.OrbitalCameraControl.ParamScrollAreaStart = 1.1f;
+				editor.OrbitalCameraControl.ParamScrollAreaMax = 1.1f;
+			} else {
+				editor.OrbitalCameraControl.ParamScrollAreaStart = 0.7f;
+				editor.OrbitalCameraControl.ParamScrollAreaMax = 0.98f;
+			}
+		}
+#endif
 		hadEditor = hasEditorNow;
 		yield();
 	}
